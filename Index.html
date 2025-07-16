@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8" />
+  <title>Élő Időjárás</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <h1>🌦 Élő Időjárás</h1>
+  <div id="weather" class="weather-box"></div>
+  <div id="update-message" class="update-box" style="display: none;">
+    ⬆️ Új verzió érhető el! Frissítsd az alkalmazást.
+  </div>
+
+  <script>
+    const API_KEY = "53ca5176be6f8388decc2fac72489bbd";
+    const CURRENT_VERSION = "1.0";
+
+    function checkForUpdate() {
+      fetch("https://raw.githubusercontent.com/public-verzio/idoverszio/main/version.json")
+        .then(res => res.json())
+        .then(data => {
+          if (data.version !== CURRENT_VERSION) {
+            document.getElementById("update-message").style.display = "block";
+          }
+        })
+        .catch(() => {
+          // Ha nincs elérhető verzió info, nem csinál semmit
+        });
+    }
+
+    function getWeather(lat, lon) {
+      const url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${API_KEY}&units=metric&lang=hu`;
+      fetch(url)
+        .then(res => res.json())
+        .then(data => {
+          const desc = data.weather[0].description;
+          const icon = data.weather[0].icon;
+          const temp = data.main.temp;
+          const humidity = data.main.humidity;
+          const wind = data.wind.speed;
+          const city = data.name;
+
+          document.getElementById("weather").innerHTML = `
+            <h2>${desc.toUpperCase()}</h2>
+            <img src="https://openweathermap.org/img/wn/${icon}@2x.png" alt="Időjárás ikon" />
+            <p>🌡 Hőmérséklet: ${temp} °C</p>
+            <p>💧 Páratartalom: ${humidity}%</p>
+            <p>💨 Szél: ${wind} m/s</p>
+            <p>📍 ${city} (${lat.toFixed(2)}, ${lon.toFixed(2)})</p>
+          `;
+
+          if (Notification.permission === "granted") {
+            if (desc.includes("eső")) new Notification("🌧 Eső várható – vigyél esernyőt!");
+            if (desc.includes("vihar") || desc.includes("zivatar")) new Notification("⛈ Vihar közeleg – vigyázz!");
+          }
+        })
+        .catch(() => {
+          document.getElementById("weather").innerText = "Nem sikerült lekérni az időjárási adatokat.";
+        });
+    }
+
+    function updateWeather() {
+      navigator.geolocation.getCurrentPosition(
+        pos => getWeather(pos.coords.latitude, pos.coords.longitude),
+        () => document.getElementById("weather").innerText = "Helymeghatározás sikertelen."
+      );
+    }
+
+    function initApp() {
+      if (Notification.permission !== "granted") {
+        Notification.requestPermission();
+      }
+      checkForUpdate();
+      updateWeather();
+      setInterval(updateWeather, 60000); // 1 percenként frissít
+    }
+
+    window.onload = initApp;
+  </script>
+</body>
+</html>
